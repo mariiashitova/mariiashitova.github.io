@@ -1,0 +1,6 @@
+Thumbs.db
+desktop.ini
+.DS_Store
+*.tmp
+# Never publish: originals, drafts, private notes
+_private/
