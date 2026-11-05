@@ -113,6 +113,8 @@ i { font-style: italic; }
 .nav a:hover, .nav a[aria-current="true"] { color: var(--ink); }
 .nav a[aria-current="true"] { border-bottom-color: var(--accent); }
 @media (max-width: 820px) { .nav { display: none; } }
+@media (max-width: 420px) { .top-in { gap: 12px; } .sm-hide { display: none; } }
+@media (max-width: 359px) { .mark { font-size: 18px; white-space: nowrap; } .top .btn-sm { padding: 0 10px; } }
 
 /* ---------- Hero ---------- */
 
