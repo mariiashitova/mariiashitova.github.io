@@ -104,6 +104,103 @@
     }
   }
 
+  /* ---------- Showreel: muted preview in view, sound on request, chapters ---------- */
+
+  const reel = document.querySelector('.reel');
+  const video = reel?.querySelector('.reel-video');
+  if (reel && video) {
+    const soundBtn = reel.querySelector('[data-reel-sound]');
+    const soundLabel = reel.querySelector('[data-reel-sound-label]');
+    const toggleBtn = reel.querySelector('[data-reel-toggle]');
+    const timeEl = reel.querySelector('[data-reel-time]');
+    const chapters = [...reel.querySelectorAll('.chapters button')];
+    const starts = chapters.map(b => Number(b.dataset.t));
+    let userPaused = false;
+    let raf = 0;
+
+    video.removeAttribute('controls');
+
+    const two = n => String(Math.floor(n)).padStart(2, '0');
+
+    function render() {
+      const t = video.currentTime || 0;
+      const end = video.duration || 22.8;
+      timeEl.textContent = `00:${two(t)}`;
+      chapters.forEach((b, i) => {
+        const s = starts[i];
+        const e = starts[i + 1] ?? end;
+        b.style.setProperty('--p', Math.min(1, Math.max(0, (t - s) / (e - s))).toFixed(4));
+        if (t >= s && t < e) b.setAttribute('aria-current', 'true');
+        else b.removeAttribute('aria-current');
+      });
+    }
+
+    function sync() {
+      const playing = !video.paused;
+      reel.classList.toggle('playing', playing);
+      reel.classList.toggle('sound', !video.muted);
+      soundLabel.textContent = video.muted ? 'Play with sound' : 'Mute';
+      soundBtn.setAttribute('aria-label', video.muted ? 'Play from the start with sound' : 'Mute');
+      toggleBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+      cancelAnimationFrame(raf);
+      const loop = () => { render(); raf = requestAnimationFrame(loop); };
+      if (playing) loop(); else render();
+    }
+    ['play', 'pause', 'volumechange', 'seeked', 'loadedmetadata'].forEach(ev => video.addEventListener(ev, sync));
+
+    function start(withSound) {
+      userPaused = false;
+      if (withSound) { video.currentTime = 0; video.muted = false; }
+      video.play().catch(() => {});
+    }
+
+    soundBtn.addEventListener('click', () => {
+      if (video.muted) start(true);
+      else video.muted = true;
+    });
+
+    toggleBtn.addEventListener('click', () => {
+      if (video.paused) start(false);
+      else { userPaused = true; video.pause(); }
+    });
+
+    video.addEventListener('click', () => {
+      if (video.muted) start(true);
+      else if (video.paused) start(false);
+      else { userPaused = true; video.pause(); }
+    });
+
+    chapters.forEach((b, i) => b.addEventListener('click', () => {
+      video.currentTime = starts[i];
+      start(false);
+    }));
+
+    /* Muted preview while in view (never with reduced motion or data saver on); pause when it leaves. */
+    const saveData = navigator.connection?.saveData === true;
+    if ('IntersectionObserver' in window) {
+      const rio = new IntersectionObserver(([e]) => {
+        if (!e.isIntersecting) {
+          if (!video.paused) { video.pause(); video.muted = true; }
+        } else if (e.intersectionRatio >= 0.45 && !reduce && !saveData && !userPaused && video.paused) {
+          video.play().catch(() => {});
+        }
+      }, { threshold: [0, 0.45] });
+      rio.observe(video);
+    }
+    document.addEventListener('visibilitychange', () => { if (document.hidden) video.pause(); });
+
+    /* Browsers without scroll-linked animation: the print straightens once, when it comes into view. */
+    if (!reduce && !(window.CSS && CSS.supports('animation-timeline: view()')) && 'IntersectionObserver' in window) {
+      reel.classList.add('tilt');
+      const tio = new IntersectionObserver(([e]) => {
+        if (e.isIntersecting) { reel.classList.remove('tilt'); tio.disconnect(); }
+      }, { threshold: 0.3 });
+      tio.observe(reel.querySelector('.reel-print'));
+    }
+
+    sync();
+  }
+
   /* ---------- Header: hairline after scroll, current section in nav ---------- */
 
   const top = document.querySelector('.top');
